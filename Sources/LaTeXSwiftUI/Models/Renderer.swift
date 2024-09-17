@@ -125,14 +125,16 @@ extension Renderer {
     processEscapes: Bool,
     errorMode: LaTeX.ErrorMode,
     font: Font,
-    displayScale: CGFloat
+    displayScale: CGFloat,
+    scaleFactor: CGFloat
   ) -> [ComponentBlock] {
     let texOptions = TeXInputProcessorOptions(processEscapes: processEscapes, errorMode: errorMode)
     return render(
       blocks: parsedBlocks(latex: latex, unencodeHTML: unencodeHTML, parsingMode: parsingMode),
       font: font,
       displayScale: displayScale,
-      texOptions: texOptions)
+      texOptions: texOptions,
+      scaleFactor: scaleFactor)
   }
   
   /// Renders the view's components asynchronously.
@@ -152,7 +154,8 @@ extension Renderer {
     processEscapes: Bool,
     errorMode: LaTeX.ErrorMode,
     font: Font,
-    displayScale: CGFloat
+    displayScale: CGFloat,
+    scaleFactor: CGFloat
   ) async {
     let isRen = await isRendering
     let ren = await rendered
@@ -168,7 +171,8 @@ extension Renderer {
       blocks: parsedBlocks(latex: latex, unencodeHTML: unencodeHTML, parsingMode: parsingMode),
       font: font,
       displayScale: displayScale,
-      texOptions: texOptions)
+      texOptions: texOptions,
+      scaleFactor: scaleFactor)
     
     await MainActor.run {
       blocks = renderedBlocks
@@ -195,7 +199,8 @@ extension Renderer {
     renderingMode: Image.TemplateRenderingMode,
     errorMode: LaTeX.ErrorMode,
     blockRenderingMode: LaTeX.BlockMode,
-    isInEquationBlock: Bool
+    isInEquationBlock: Bool,
+    scaleFactor: CGFloat
   ) -> Text {
     // Get the component's text
     let text: Text
@@ -217,7 +222,8 @@ extension Renderer {
         component: component,
         font: font,
         displayScale: displayScale,
-        renderingMode: renderingMode
+        renderingMode: renderingMode,
+        scaleFactor: scaleFactor
       ) {
         let xHeight = _Font.preferredFont(from: font).xHeight
         let offset = svg.geometry.verticalAlignment.toPoints(xHeight)
@@ -231,7 +237,11 @@ extension Renderer {
       text = Text(component.originalTextTrimmingNewlines)
     }
     else {
-      text = Text(component.originalText)
+        if component.originalText == " " {
+            text = Text("")
+        } else {
+            text = Text(component.originalText)
+        }
     }
     
     return text
@@ -247,7 +257,8 @@ extension Renderer {
     block: ComponentBlock,
     font: Font,
     displayScale: CGFloat,
-    renderingMode: Image.TemplateRenderingMode
+    renderingMode: Image.TemplateRenderingMode,
+    scaleFactor: CGFloat
   ) -> (Image, CGSize, String?)? {
     guard block.isEquationBlock, let component = block.components.first else {
       return nil
@@ -256,7 +267,8 @@ extension Renderer {
       component: component,
       font: font,
       displayScale: displayScale,
-      renderingMode: renderingMode)
+      renderingMode: renderingMode,
+      scaleFactor: scaleFactor)
   }
   
   /// Creates an image from an SVG.
@@ -271,7 +283,8 @@ extension Renderer {
     component: Component,
     font: Font,
     displayScale: CGFloat,
-    renderingMode: Image.TemplateRenderingMode
+    renderingMode: Image.TemplateRenderingMode,
+    scaleFactor: CGFloat
   ) -> (Image, CGSize, String?)? {
     guard let svg = component.svg else {
       return nil
@@ -291,10 +304,21 @@ extension Renderer {
     // Continue with getting the image
     let width = svg.geometry.width.toPoints(font.xHeight)
     let height = svg.geometry.height.toPoints(font.xHeight)
+      
+      // Inject base color into SVG data
+      var modifiedSVGData = svg.data
+      if let svgString = String(data: modifiedSVGData, encoding: .utf8) {
+        let colorInjection = "svg { color: #3d4d6a; } text { fill: currentColor; }"
+        let modifiedSVGString = svgString.replacingOccurrences(
+          of: "</svg>",
+          with: "<style>\(colorInjection)</style></svg>"
+        )
+        modifiedSVGData = modifiedSVGString.data(using: .utf8) ?? modifiedSVGData
+      }
     
     // Render the view
-    let view = SVGView(data: svg.data)
-    let renderer = ImageRenderer(content: view.frame(width: width, height: height))
+    let view = SVGView(data: modifiedSVGData)
+    let renderer = ImageRenderer(content: view.frame(width: width * scaleFactor, height: height * scaleFactor))
 #if os(iOS)
     renderer.scale = UIScreen.main.scale
     let image = renderer.image
@@ -372,7 +396,8 @@ extension Renderer {
     _ components: [Component],
     xHeight: CGFloat,
     displayScale: CGFloat,
-    texOptions: TeXInputProcessorOptions
+    texOptions: TeXInputProcessorOptions,
+    scaleFactor: CGFloat
   ) throws -> [Component] {
     // Make sure we have a MathJax instance!
     guard let mathjax = MathJax.svgRenderer else {
@@ -475,10 +500,11 @@ extension Renderer {
     blocks: [ComponentBlock],
     font: Font,
     displayScale: CGFloat,
-    texOptions: TeXInputProcessorOptions
+    texOptions: TeXInputProcessorOptions,
+    scaleFactor: CGFloat
   ) async -> [ComponentBlock] {
     return await withCheckedContinuation({ continuation in
-      continuation.resume(returning: render(blocks: blocks, font: font, displayScale: displayScale, texOptions: texOptions))
+      continuation.resume(returning: render(blocks: blocks, font: font, displayScale: displayScale, texOptions: texOptions, scaleFactor: scaleFactor))
     })
   }
   
@@ -494,7 +520,8 @@ extension Renderer {
     blocks: [ComponentBlock],
     font: Font,
     displayScale: CGFloat,
-    texOptions: TeXInputProcessorOptions
+    texOptions: TeXInputProcessorOptions,
+    scaleFactor: CGFloat
   ) -> [ComponentBlock] {
     var newBlocks = [ComponentBlock]()
     for block in blocks {
@@ -503,7 +530,8 @@ extension Renderer {
           block.components,
           xHeight: font.xHeight,
           displayScale: displayScale,
-          texOptions: texOptions)
+          texOptions: texOptions,
+          scaleFactor: scaleFactor)
         
         newBlocks.append(ComponentBlock(components: newComponents))
       }

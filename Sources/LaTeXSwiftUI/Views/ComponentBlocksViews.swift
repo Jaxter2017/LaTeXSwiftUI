@@ -45,6 +45,9 @@ internal struct ComponentBlocksViews: View {
   /// The view's font.
   @Environment(\.font) private var font
   
+  /// Custom scale factor to scale font given above
+  @Environment(\.scaleFactor) private var scaleFactor
+
   /// The view's current display scale.
   @Environment(\.displayScale) private var displayScale
   
@@ -56,45 +59,53 @@ internal struct ComponentBlocksViews: View {
   
   // MARK: View body
   
-  var body: some View {
-    VStack(alignment: .leading, spacing: lineSpacing + 4) {
-      ForEach(blocks, id: \.self) { block in
-        if block.isEquationBlock,
-           let (image, size, errorText) = renderer.convertToImage(block: block, font: font ?? .body, displayScale: displayScale, renderingMode: imageRenderingMode) {
-          HStack(spacing: 0) {
-            EquationNumber(blockIndex: blocks.filter({ $0.isEquationBlock }).firstIndex(of: block) ?? 0, side: .left)
-            
-            if let errorText = errorText, errorMode != .rendered {
-              switch errorMode {
-              case .error:
-                Text(errorText)
-              case .original:
-                Text(block.components.first?.originalText ?? "")
-              default:
-                EmptyView()
-              }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 36) {
+            Group {
+                ForEach(blocks, id: \.self) { block in
+                    blockView(for: block)
+                }
             }
-            else {
-              HorizontalImageScroller(
-                image: image,
-                height: size.height)
-            }
-            
-            EquationNumber(blockIndex: blocks.filter({ $0.isEquationBlock }).firstIndex(of: block) ?? 0, side: .right)
-          }
         }
-        else {
-          block.toText(
-            using: renderer,
-            font: font,
-            displayScale: displayScale,
-            renderingMode: imageRenderingMode,
-            errorMode: errorMode,
-            blockRenderingMode: blockMode)
-        }
-      }
     }
-  }
+
+    @ViewBuilder
+    private func blockView(for block: ComponentBlock) -> some View {
+        if block.isEquationBlock,
+           let (image, size, errorText) = renderer.convertToImage(block: block, font: font ?? .body, displayScale: displayScale, renderingMode: imageRenderingMode, scaleFactor: scaleFactor) {
+            HStack(spacing: 0) {
+                EquationNumber(blockIndex: blocks.filter({ $0.isEquationBlock }).firstIndex(of: block) ?? 0, side: .left)
+                
+                if let errorText = errorText, errorMode != .rendered {
+                    errorView(for: errorText, block: block)
+                } else {
+                    HorizontalImageScroller(image: image, height: size.height)
+                }
+                EquationNumber(blockIndex: blocks.filter({ $0.isEquationBlock }).firstIndex(of: block) ?? 0, side: .right)
+            }
+        } else {
+            block.toText(
+                using: renderer,
+                font: font,
+                displayScale: displayScale,
+                renderingMode: imageRenderingMode,
+                errorMode: errorMode,
+                blockRenderingMode: blockMode,
+                scaleFactor: scaleFactor)
+        }
+    }
+
+    @ViewBuilder
+    private func errorView(for errorText: String, block: ComponentBlock) -> some View {
+        switch errorMode {
+        case .error:
+            Text(errorText)
+        case .original:
+            Text(block.components.first?.originalText ?? "")
+        default:
+            EmptyView()
+        }
+    }
   
 }
 

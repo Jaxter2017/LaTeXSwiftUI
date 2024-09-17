@@ -44,6 +44,12 @@ internal struct Parser {
     regex: #/\$(.*?)\$/#,
     terminatingRegex: #/\$/#,
     equation: .inlineEquation)
+    
+    /// An inline math parentheses component.
+    static let inlineMathParens = EquationComponent(
+      regex: #/\\\((.*?)\\\)/#,
+      terminatingRegex: #/\\\)/#,
+      equation: .inlineMathParens)
   
   /// An TeX-style block equation component.
   static let tex = EquationComponent(
@@ -72,6 +78,7 @@ internal struct Parser {
   // Order matters
   static let allEquations: [EquationComponent] = [
     inline,
+    inlineMathParens,
     tex,
     block,
     named,

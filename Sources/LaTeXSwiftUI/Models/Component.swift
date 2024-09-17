@@ -60,7 +60,8 @@ internal struct ComponentBlock: Hashable, Identifiable {
     displayScale: CGFloat,
     renderingMode: Image.TemplateRenderingMode,
     errorMode: LaTeX.ErrorMode,
-    blockRenderingMode: LaTeX.BlockMode
+    blockRenderingMode: LaTeX.BlockMode,
+    scaleFactor: CGFloat
   ) -> Text {
     components.enumerated().map { i, component in
       return renderer.convertToText(
@@ -70,7 +71,8 @@ internal struct ComponentBlock: Hashable, Identifiable {
         renderingMode: renderingMode,
         errorMode: errorMode,
         blockRenderingMode: blockRenderingMode,
-        isInEquationBlock: isEquationBlock)
+        isInEquationBlock: isEquationBlock,
+        scaleFactor: scaleFactor)
     }.reduce(Text(""), +)
   }
   
@@ -104,6 +106,8 @@ internal struct Component: CustomStringConvertible, Equatable, Hashable {
     ///
     /// - Example: `\begin{equation}x^2\end{equation}`
     case namedEquation
+      
+      case inlineMathParens
     
     /// A named equation component.
     ///
@@ -120,6 +124,7 @@ internal struct Component: CustomStringConvertible, Equatable, Hashable {
       switch self {
       case .text: return ""
       case .inlineEquation: return "$"
+      case .inlineMathParens: return "\\("
       case .texEquation: return "$$"
       case .blockEquation: return "\\["
       case .namedEquation: return "\\begin{equation}"
@@ -132,6 +137,7 @@ internal struct Component: CustomStringConvertible, Equatable, Hashable {
       switch self {
       case .text: return ""
       case .inlineEquation: return "$"
+      case .inlineMathParens: return "\\)"
       case .texEquation: return "$$"
       case .blockEquation: return "\\]"
       case .namedEquation: return "\\end{equation}"
@@ -142,7 +148,7 @@ internal struct Component: CustomStringConvertible, Equatable, Hashable {
     /// Whether or not this component is inline.
     var inline: Bool {
       switch self {
-      case .text, .inlineEquation: return true
+      case .text, .inlineEquation, .inlineMathParens: return true
       default: return false
       }
     }

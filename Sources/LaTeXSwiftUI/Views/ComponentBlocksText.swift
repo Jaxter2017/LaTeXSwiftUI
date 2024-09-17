@@ -48,6 +48,9 @@ internal struct ComponentBlocksText: View {
   /// The view's font.
   @Environment(\.font) private var font
   
+  /// Custom scale factor to scale font given above
+  @Environment(\.scaleFactor) private var scaleFactor
+    
   /// The view's current display scale.
   @Environment(\.displayScale) private var displayScale
   
@@ -81,7 +84,8 @@ extension ComponentBlocksText {
       displayScale: displayScale,
       renderingMode: imageRenderingMode,
       errorMode: errorMode,
-      blockRenderingMode: blockMode)
+      blockRenderingMode: blockMode,
+      scaleFactor: scaleFactor)
   }
   
 }

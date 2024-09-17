@@ -156,6 +156,9 @@ public struct LaTeX: View {
   /// The view's font.
   @Environment(\.font) private var font
   
+  /// Custom scale factor to scale font given above
+  @Environment(\.scaleFactor) private var scaleFactor
+  
   // MARK: Private properties
   
   /// The view's renderer.
@@ -224,6 +227,10 @@ extension LaTeX {
   public func latexStyle<S>(_ style: S) -> some View where S: LaTeXStyle {
     style.makeBody(content: self)
   }
+    
+    public func latexScaleFactor(_ factor: CGFloat) -> some View {
+        environment(\.scaleFactor, factor)
+    }
   
 }
 
@@ -258,7 +265,8 @@ extension LaTeX {
       processEscapes: processEscapes,
       errorMode: errorMode,
       font: font ?? .body,
-      displayScale: displayScale)
+      displayScale: displayScale,
+      scaleFactor: scaleFactor)
   }
   
   /// Renders the view's components synchronously.
@@ -272,7 +280,8 @@ extension LaTeX {
       processEscapes: processEscapes,
       errorMode: errorMode,
       font: font ?? .body,
-      displayScale: displayScale)
+      displayScale: displayScale,
+      scaleFactor: scaleFactor)
   }
   
   /// Creates the view's body based on its block mode.
@@ -306,4 +315,15 @@ extension LaTeX {
     }
   }
   
+}
+
+private struct ScaleFactorKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1.0
+}
+
+extension EnvironmentValues {
+    var scaleFactor: CGFloat {
+        get { self[ScaleFactorKey.self] }
+        set { self[ScaleFactorKey.self] = newValue }
+    }
 }
