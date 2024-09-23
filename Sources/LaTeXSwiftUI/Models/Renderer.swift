@@ -235,6 +235,7 @@ extension Renderer {
     }
     else if blockRenderingMode == .alwaysInline {
       text = Text(component.originalTextTrimmingNewlines)
+          .baselineOffset(scaleFactor == 2 ? 12 : 0)
     }
     else {
         if component.originalText == " " {
