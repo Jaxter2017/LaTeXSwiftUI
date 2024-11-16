@@ -166,6 +166,56 @@ public struct LaTeX: View {
   
   /// The view's preload task, if any.
   @State private var preloadTask: Task<(), Never>?
+
+  func replaceBlackboardBold(_ latex: String) -> String {
+      // Dictionary mapping regular letters to their double-struck versions
+      let doubleMappings: [Character: Character] = [
+          "A": "𝔸", "B": "𝔹", "C": "ℂ", "D": "𝔻", "E": "𝔼",
+          "F": "𝔽", "G": "𝔾", "H": "ℍ", "I": "𝕀", "J": "𝕁",
+          "K": "𝕂", "L": "𝕃", "M": "𝕄", "N": "ℕ", "O": "𝕆",
+          "P": "ℙ", "Q": "ℚ", "R": "ℝ", "S": "𝕊", "T": "𝕋",
+          "U": "𝕌", "V": "𝕍", "W": "𝕎", "X": "𝕏", "Y": "𝕐",
+          "Z": "ℤ"
+      ]
+      
+      var result = ""
+      var currentIndex = latex.startIndex
+      
+      while currentIndex < latex.endIndex {
+          // Look for \mathbb{
+          if let range = latex[currentIndex...].range(of: "\\mathbb{") {
+              // Add everything up to \mathbb{
+              result += latex[currentIndex..<range.lowerBound]
+              
+              // Find the closing brace
+              let afterCommand = range.upperBound
+              guard let closingBrace = latex[afterCommand...].firstIndex(of: "}") else {
+                  // If no closing brace, just append the rest and break
+                  result += latex[currentIndex...]
+                  break
+              }
+              
+              // Process the content inside \mathbb{...}
+              let content = latex[afterCommand..<closingBrace]
+              for char in content {
+                  if let replacement = doubleMappings[char] {
+                      result.append(replacement)
+                  } else {
+                      result.append(char)
+                  }
+              }
+              
+              // Move past the closing brace
+              currentIndex = latex.index(after: closingBrace)
+          } else {
+              // No more \mathbb{ found, append the rest
+              result += latex[currentIndex...]
+              break
+          }
+      }
+      
+      return result
+  }
   
   // MARK: Initializers
   
@@ -173,7 +223,7 @@ public struct LaTeX: View {
   ///
   /// - Parameter latex: The LaTeX input.
   public init(_ latex: String) {
-    self.latex = latex
+      self.latex = replaceBlackboardBold(latex)
   }
   
   // MARK: View body
