@@ -27,16 +27,13 @@ import HTMLEntities
 import MathJaxSwift
 import SwiftUI
 
+private func transformLatex(_ latex: String) -> String {
+    let bbReplaced = replaceBlackboardBold(latex)
+    return convertArrayToEquation(bbReplaced)
+}
+
 private func replaceBlackboardBold(_ latex: String) -> String {
-    // Dictionary mapping regular letters to their double-struck versions
-    let doubleMappings: [Character: Character] = [
-        "A": "𝔸", "B": "𝔹", "C": "ℂ", "D": "𝔻", "E": "𝔼",
-        "F": "𝔽", "G": "𝔾", "H": "ℍ", "I": "𝕀", "J": "𝕁",
-        "K": "𝕂", "L": "𝕃", "M": "𝕄", "N": "ℕ", "O": "𝕆",
-        "P": "ℙ", "Q": "ℚ", "R": "ℝ", "S": "𝕊", "T": "𝕋",
-        "U": "𝕌", "V": "𝕍", "W": "𝕎", "X": "𝕏", "Y": "𝕐",
-        "Z": "ℤ"
-    ]
+    print("Input: \(latex)")
     
     var result = ""
     var currentIndex = latex.startIndex
@@ -55,26 +52,53 @@ private func replaceBlackboardBold(_ latex: String) -> String {
                 break
             }
             
-            // Process the content inside \mathbb{...}
+            // Get content and capitalize it
             let content = latex[afterCommand..<closingBrace]
-            for char in content {
-                if let replacement = doubleMappings[char] {
-                    result.append(replacement)
-                } else {
-                    result.append(char)
-                }
-            }
+            result += "\\mathbf{\(content.uppercased())}"
             
             // Move past the closing brace
             currentIndex = latex.index(after: closingBrace)
         } else {
-            // No more \mathbb{ found, append the rest
-            result += latex[currentIndex...]
-            break
+            // No more \mathbb{ found, append current character and move forward
+            result.append(latex[currentIndex])
+            currentIndex = latex.index(after: currentIndex)
         }
     }
-    
+
+    print("Output: \(result)")
     return result
+}
+
+func convertArrayToEquation(_ input: String) -> String {
+    var output = input
+
+    // Regular expression pattern to match \begin{array}{...}...\end{array}
+    let pattern = #"\\begin\{array\}\{[^\}]*\}(.*?)\\end\{array\}"#
+    let regex = try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+
+    let nsrange = NSRange(output.startIndex..<output.endIndex, in: output)
+
+    // Find matches in input
+    let matches = regex.matches(in: output, options: [], range: nsrange)
+
+    // Process matches in reverse order to maintain correct ranges
+    for match in matches.reversed() {
+        // Full range of the entire \begin{array}...\end{array}
+        let fullRange = match.range(at: 0)
+        // Range of the content inside the array environment
+        let contentRange = match.range(at: 1)
+
+        if let fullRange = Range(fullRange, in: output),
+           let contentRange = Range(contentRange, in: output) {
+            let content = String(output[contentRange])
+            // Replace '\\' with '\newline '
+            let modifiedContent = content.replacingOccurrences(of: #"\\\\\s*"#, with: #"\\newline "#, options: .regularExpression)
+            // Replace the entire \begin{array}...\end{array} with the modified content, trimming extra whitespace
+            output.replaceSubrange(fullRange, with: modifiedContent.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+    }
+
+    return output
 }
 
 /// A view that can parse and render TeX and LaTeX equations that contain
@@ -223,7 +247,7 @@ public struct LaTeX: View {
   ///
   /// - Parameter latex: The LaTeX input.
   public init(_ latex: String) {
-      self.latex = replaceBlackboardBold(latex)
+      self.latex = transformLatex(latex)
   }
   
   // MARK: View body
