@@ -110,78 +110,11 @@ func handleEmojis(_ input: String) -> String {
     
     var result = input
     
-    // Remove outer \( \) LaTeX delimiters
+    // Remove outer \( \) LaTeX delimiters first
     result = result.replacingOccurrences(of: "\\(", with: "")
     result = result.replacingOccurrences(of: "\\)", with: "")
     
-    // Dictionary of LaTeX commands to Unicode symbols
-    let latexToUnicode: [(pattern: String, replacement: String)] = [
-        // Delimiters
-        ("\\(", ""),
-        ("\\)", ""),
-        
-        // Basic operations
-        ("\\times", "×"),
-        ("\\div", "÷"),
-        ("\\cdot", "·"),
-        ("\\pm", "±"),
-        ("\\mp", "∓"),
-        
-        // Comparison
-        ("\\leq", "≤"),
-        ("\\geq", "≥"),
-        ("\\neq", "≠"),
-        ("\\approx", "≈"),
-        ("\\equiv", "≡"),
-        
-        // Sets and logic
-        ("\\in", "∈"),
-        ("\\notin", "∉"),
-        ("\\subset", "⊂"),
-        ("\\supset", "⊃"),
-        ("\\cup", "∪"),
-        ("\\cap", "∩"),
-        ("\\emptyset", "∅"),
-        ("\\forall", "∀"),
-        ("\\exists", "∃"),
-        
-        // Arrows
-        ("\\rightarrow", "→"),
-        ("\\leftarrow", "←"),
-        ("\\Rightarrow", "⇒"),
-        ("\\Leftarrow", "⇐"),
-        ("\\leftrightarrow", "↔"),
-        ("\\Leftrightarrow", "⇔"),
-        
-        // Greek letters (commonly used)
-        ("\\alpha", "α"),
-        ("\\beta", "β"),
-        ("\\gamma", "γ"),
-        ("\\delta", "δ"),
-        ("\\epsilon", "ε"),
-        ("\\theta", "θ"),
-        ("\\lambda", "λ"),
-        ("\\mu", "μ"),
-        ("\\pi", "π"),
-        ("\\sigma", "σ"),
-        ("\\omega", "ω"),
-        
-        // Miscellaneous math symbols
-        ("\\infty", "∞"),
-        ("\\partial", "∂"),
-        ("\\nabla", "∇"),
-        ("\\therefore", "∴"),
-        ("\\because", "∵"),
-        ("\\sqrt", "√"),
-        
-        // Superscripts and subscripts
-        ("\\^2", "²"),
-        ("\\^3", "³"),
-        ("_2", "₂"),
-        ("_3", "₃")
-    ]
-    
-    // Handle fractions with regex
+    // Handle fractions with regex first
     if let fracRegex = try? NSRegularExpression(pattern: "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}", options: []) {
         let range = NSRange(result.startIndex..<result.endIndex, in: result)
         result = fracRegex.stringByReplacingMatches(
@@ -192,7 +125,7 @@ func handleEmojis(_ input: String) -> String {
         )
     }
     
-    // Handle square root with regex
+    // Handle square root with regex - ensuring consistent parentheses
     if let sqrtRegex = try? NSRegularExpression(pattern: "\\\\sqrt\\{([^}]+)\\}", options: []) {
         let range = NSRange(result.startIndex..<result.endIndex, in: result)
         result = sqrtRegex.stringByReplacingMatches(
@@ -203,12 +136,62 @@ func handleEmojis(_ input: String) -> String {
         )
     }
     
-    // Replace all other LaTeX commands with their Unicode equivalents
+    // Dictionary of LaTeX commands to Unicode symbols - ordered by length to handle longer commands first
+    let latexToUnicode: [(pattern: String, replacement: String)] = [
+        // Longer commands first to avoid partial matches
+        ("\\leftrightarrow", "↔"),
+        ("\\Leftrightarrow", "⇔"),
+        ("\\rightarrow", "→"),
+        ("\\Rightarrow", "⇒"),
+        ("\\leftarrow", "←"),
+        ("\\Leftarrow", "⇐"),
+        ("\\emptyset", "∅"),
+        ("\\epsilon", "ε"),
+        ("\\because", "∵"),
+        ("\\forall", "∀"),
+        ("\\exists", "∃"),
+        ("\\lambda", "λ"),
+        ("\\approx", "≈"),
+        ("\\subset", "⊂"),
+        ("\\supset", "⊃"),
+        ("\\times", "×"),
+        ("\\alpha", "α"),
+        ("\\beta", "β"),
+        ("\\gamma", "γ"),
+        ("\\delta", "δ"),
+        ("\\theta", "θ"),
+        ("\\sigma", "σ"),
+        ("\\omega", "ω"),
+        ("\\infty", "∞"),
+        ("\\nabla", "∇"),
+        ("\\notin", "∉"),
+        ("\\equiv", "≡"),
+        ("\\cdot", "·"),
+        ("\\leq", "≤"),
+        ("\\geq", "≥"),
+        ("\\neq", "≠"),
+        ("\\div", "÷"),
+        ("\\cup", "∪"),
+        ("\\cap", "∩"),
+        ("\\in", "∈"),
+        ("\\pm", "±"),
+        ("\\mp", "∓"),
+        ("\\pi", "π"),
+        ("\\mu", "μ"),
+        
+        // Handle superscripts and subscripts
+        ("\\^2", "²"),
+        ("\\^3", "³"),
+        ("_2", "₂"),
+        ("_3", "₃")
+    ]
+    
+    // Replace all LaTeX commands with their Unicode equivalents
     for (pattern, replacement) in latexToUnicode {
         result = result.replacingOccurrences(
             of: pattern,
             with: replacement,
-            options: .regularExpression
+            options: .literal  // Changed from .regularExpression to .literal
         )
     }
     
