@@ -114,10 +114,77 @@ func handleEmojis(_ input: String) -> String {
     result = result.replacingOccurrences(of: "\\(", with: "")
     result = result.replacingOccurrences(of: "\\)", with: "")
     
-    // Replace LaTeX fractions with division using regex
-    if let regex = try? NSRegularExpression(pattern: "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}", options: []) {
+    // Dictionary of LaTeX commands to Unicode symbols
+    let latexToUnicode: [(pattern: String, replacement: String)] = [
+        // Delimiters
+        ("\\(", ""),
+        ("\\)", ""),
+        
+        // Basic operations
+        ("\\times", "×"),
+        ("\\div", "÷"),
+        ("\\cdot", "·"),
+        ("\\pm", "±"),
+        ("\\mp", "∓"),
+        
+        // Comparison
+        ("\\leq", "≤"),
+        ("\\geq", "≥"),
+        ("\\neq", "≠"),
+        ("\\approx", "≈"),
+        ("\\equiv", "≡"),
+        
+        // Sets and logic
+        ("\\in", "∈"),
+        ("\\notin", "∉"),
+        ("\\subset", "⊂"),
+        ("\\supset", "⊃"),
+        ("\\cup", "∪"),
+        ("\\cap", "∩"),
+        ("\\emptyset", "∅"),
+        ("\\forall", "∀"),
+        ("\\exists", "∃"),
+        
+        // Arrows
+        ("\\rightarrow", "→"),
+        ("\\leftarrow", "←"),
+        ("\\Rightarrow", "⇒"),
+        ("\\Leftarrow", "⇐"),
+        ("\\leftrightarrow", "↔"),
+        ("\\Leftrightarrow", "⇔"),
+        
+        // Greek letters (commonly used)
+        ("\\alpha", "α"),
+        ("\\beta", "β"),
+        ("\\gamma", "γ"),
+        ("\\delta", "δ"),
+        ("\\epsilon", "ε"),
+        ("\\theta", "θ"),
+        ("\\lambda", "λ"),
+        ("\\mu", "μ"),
+        ("\\pi", "π"),
+        ("\\sigma", "σ"),
+        ("\\omega", "ω"),
+        
+        // Miscellaneous math symbols
+        ("\\infty", "∞"),
+        ("\\partial", "∂"),
+        ("\\nabla", "∇"),
+        ("\\therefore", "∴"),
+        ("\\because", "∵"),
+        ("\\sqrt", "√"),
+        
+        // Superscripts and subscripts
+        ("\\^2", "²"),
+        ("\\^3", "³"),
+        ("_2", "₂"),
+        ("_3", "₃")
+    ]
+    
+    // Handle fractions with regex
+    if let fracRegex = try? NSRegularExpression(pattern: "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}", options: []) {
         let range = NSRange(result.startIndex..<result.endIndex, in: result)
-        result = regex.stringByReplacingMatches(
+        result = fracRegex.stringByReplacingMatches(
             in: result,
             options: [],
             range: range,
@@ -125,14 +192,34 @@ func handleEmojis(_ input: String) -> String {
         )
     }
     
-    // Replace LaTeX times symbol with multiplication
-    result = result.replacingOccurrences(of: "\\times", with: "×")
+    // Handle square root with regex
+    if let sqrtRegex = try? NSRegularExpression(pattern: "\\\\sqrt\\{([^}]+)\\}", options: []) {
+        let range = NSRange(result.startIndex..<result.endIndex, in: result)
+        result = sqrtRegex.stringByReplacingMatches(
+            in: result,
+            options: [],
+            range: range,
+            withTemplate: "√($1)"
+        )
+    }
     
-    // Remove extra whitespace
+    // Replace all other LaTeX commands with their Unicode equivalents
+    for (pattern, replacement) in latexToUnicode {
+        result = result.replacingOccurrences(
+            of: pattern,
+            with: replacement,
+            options: .regularExpression
+        )
+    }
+    
+    // Clean up spaces
     result = result.components(separatedBy: .whitespaces)
         .filter { !$0.isEmpty }
         .joined(separator: " ")
         .trimmingCharacters(in: .whitespaces)
+    
+    // Handle multiple spaces between operators
+    result = result.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
     
     return result
 }
