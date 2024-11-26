@@ -29,7 +29,8 @@ import SwiftUI
 
 private func transformLatex(_ latex: String) -> String {
     let bbReplaced = replaceBlackboardBold(latex)
-    return convertArrayToEquation(bbReplaced)
+    let emojiReplaced = handleEmojis(bbReplaced)
+    return convertArrayToEquation(emojiReplaced)
 }
 
 private func replaceBlackboardBold(_ latex: String) -> String {
@@ -99,6 +100,41 @@ func convertArrayToEquation(_ input: String) -> String {
     }
 
     return output
+}
+
+func handleEmojis(_ input: String) -> String {
+    // If the string contains no emoji, return it unchanged
+    if !input.containsEmoji {
+        return input
+    }
+    
+    var result = input
+    
+    // Remove outer \( \) LaTeX delimiters
+    result = result.replacingOccurrences(of: "\\(", with: "")
+    result = result.replacingOccurrences(of: "\\)", with: "")
+    
+    // Replace LaTeX fractions with division using regex
+    if let regex = try? NSRegularExpression(pattern: "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}", options: []) {
+        let range = NSRange(result.startIndex..<result.endIndex, in: result)
+        result = regex.stringByReplacingMatches(
+            in: result,
+            options: [],
+            range: range,
+            withTemplate: "$1 ÷ $2"
+        )
+    }
+    
+    // Replace LaTeX times symbol with multiplication
+    result = result.replacingOccurrences(of: "\\times", with: "×")
+    
+    // Remove extra whitespace
+    result = result.components(separatedBy: .whitespaces)
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+        .trimmingCharacters(in: .whitespaces)
+    
+    return result
 }
 
 /// A view that can parse and render TeX and LaTeX equations that contain
@@ -399,5 +435,104 @@ extension EnvironmentValues {
     var scaleFactor: CGFloat {
         get { self[ScaleFactorKey.self] }
         set { self[ScaleFactorKey.self] = newValue }
+    }
+}
+
+
+// https://stackoverflow.com/questions/30757193/find-out-if-character-in-string-is-emoji
+import Foundation
+import CoreText
+
+extension UnicodeScalar {
+    var isEmoji: Bool {
+        switch value {
+        case 0x1F600...0x1F64F, // Emoticons
+             0x1F300...0x1F5FF, // Misc Symbols and Pictographs
+             0x1F680...0x1F6FF, // Transport and Map
+             0x1F1E6...0x1F1FF, // Regional country flags
+             0x2600...0x26FF, // Misc symbols
+             0x2700...0x27BF, // Dingbats
+             0xE0020...0xE007F, // Tags
+             0xFE00...0xFE0F, // Variation Selectors
+             0x1F900...0x1F9FF, // Supplemental Symbols and Pictographs
+             0x1F018...0x1F270, // Various asian characters
+             0x238C...0x2454, // Misc items
+             0x20D0...0x20FF: // Combining Diacritical Marks for Symbols
+            return true
+
+        default: return false
+        }
+    }
+
+    var isZeroWidthJoiner: Bool {
+        return value == 8205
+    }
+}
+
+extension String {
+    // Not needed anymore in swift 4.2 and later, using `.count` will give you the correct result
+    var glyphCount: Int {
+        let richText = NSAttributedString(string: self)
+        let line = CTLineCreateWithAttributedString(richText)
+        return CTLineGetGlyphCount(line)
+    }
+
+    var isSingleEmoji: Bool {
+        return glyphCount == 1 && containsEmoji
+    }
+
+    var containsEmoji: Bool {
+        return unicodeScalars.contains { $0.isEmoji }
+    }
+
+    var containsOnlyEmoji: Bool {
+        return !isEmpty
+            && !unicodeScalars.contains(where: {
+                !$0.isEmoji && !$0.isZeroWidthJoiner
+            })
+    }
+
+    // The next tricks are mostly to demonstrate how tricky it can be to determine emoji's
+    // If anyone has suggestions how to improve this, please let me know
+    var emojiString: String {
+        return emojiScalars.map { String($0) }.reduce("", +)
+    }
+
+    var emojis: [String] {
+        var scalars: [[UnicodeScalar]] = []
+        var currentScalarSet: [UnicodeScalar] = []
+        var previousScalar: UnicodeScalar?
+
+        for scalar in emojiScalars {
+            if let prev = previousScalar, !prev.isZeroWidthJoiner, !scalar.isZeroWidthJoiner {
+                scalars.append(currentScalarSet)
+                currentScalarSet = []
+            }
+            currentScalarSet.append(scalar)
+
+            previousScalar = scalar
+        }
+
+        scalars.append(currentScalarSet)
+
+        return scalars.map { $0.map { String($0) }.reduce("", +) }
+    }
+
+    fileprivate var emojiScalars: [UnicodeScalar] {
+        var chars: [UnicodeScalar] = []
+        var previous: UnicodeScalar?
+        for cur in unicodeScalars {
+            if let previous = previous, previous.isZeroWidthJoiner, cur.isEmoji {
+                chars.append(previous)
+                chars.append(cur)
+
+            } else if cur.isEmoji {
+                chars.append(cur)
+            }
+
+            previous = cur
+        }
+
+        return chars
     }
 }
