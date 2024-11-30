@@ -108,6 +108,11 @@ func handleEmojis(_ input: String) -> String {
         return input
     }
     
+    // return if input contains '\\underbrace'
+    if input.contains("\\underbrace") {
+        return input
+    }
+    
     var result = input
     
     // Remove outer \( \) LaTeX delimiters first
