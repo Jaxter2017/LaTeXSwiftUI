@@ -303,8 +303,8 @@ extension Renderer {
     }
     
     // Continue with getting the image
-    let width = svg.geometry.width.toPoints(font.xHeight)
-    let height = svg.geometry.height.toPoints(font.xHeight)
+//    let width = svg.geometry.width.toPoints(font.xHeight)
+//    let height = svg.geometry.height.toPoints(font.xHeight)
       
       // Inject base color into SVG data
       var modifiedSVGData = svg.data
@@ -316,6 +316,36 @@ extension Renderer {
         )
         modifiedSVGData = modifiedSVGString.data(using: .utf8) ?? modifiedSVGData
       }
+      
+    #if os(iOS)
+        let contentSize = UIApplication.shared.preferredContentSizeCategory
+        var systemScaleFactor: CGFloat = {
+            switch contentSize {
+                case .extraSmall: return 0.882758620689655
+                case .small: return 0.937931034482759
+                case .medium: return 1.0
+                case .large: return 1.0448275862069
+                case .extraLarge: return 1.16551724137931
+                case .extraExtraLarge: return 1.24827586206897
+                case .extraExtraExtraLarge: return 1.36551724137931
+                case .accessibilityMedium: return 1.64137931034483
+                case .accessibilityLarge: return 1.93793103448276
+                case .accessibilityExtraLarge: return 2.33793103448276
+                case .accessibilityExtraExtraLarge: return 2.77931034482759
+                case .accessibilityExtraExtraExtraLarge: return 2.99310344827586
+            default: return 1.0
+            }
+        }()
+    #else
+        let systemScaleFactor = NSFontMetrics.default.scaledValue(for: 1.0)
+    #endif
+      
+      if scaleFactor == 1 { // don't even worry about it
+          systemScaleFactor = 1.0
+      }
+      
+  let width = (svg.geometry.width.toPoints(font.xHeight)) / systemScaleFactor
+  let height = (svg.geometry.height.toPoints(font.xHeight)) / systemScaleFactor
     
     // Render the view
     let view = SVGView(data: modifiedSVGData)
