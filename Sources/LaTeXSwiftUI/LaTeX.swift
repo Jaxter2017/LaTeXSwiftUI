@@ -34,8 +34,6 @@ private func transformLatex(_ latex: String) -> String {
 }
 
 private func replaceBlackboardBold(_ latex: String) -> String {
-    print("Input: \(latex)")
-    
     var result = ""
     var currentIndex = latex.startIndex
     
@@ -65,8 +63,6 @@ private func replaceBlackboardBold(_ latex: String) -> String {
             currentIndex = latex.index(after: currentIndex)
         }
     }
-
-    print("Output: \(result)")
     return result
 }
 
