@@ -306,22 +306,24 @@ extension Renderer {
 //    let width = svg.geometry.width.toPoints(font.xHeight)
 //    let height = svg.geometry.height.toPoints(font.xHeight)
       
-    // Inject base color into SVG data
-    var modifiedSVGData = svg.data
-    if let svgString = String(data: modifiedSVGData, encoding: .utf8) {
-      let colorInjection = """
-        svg { color: #3d4d6a; }
-        text { fill: currentColor; }
-        @media (prefers-color-scheme: dark) {
-          svg { color: #e5e7eb; }
-        }
-      """
-      let modifiedSVGString = svgString.replacingOccurrences(
-        of: "</svg>",
-        with: "<style>\(colorInjection)</style></svg>"
-      )
-      modifiedSVGData = modifiedSVGString.data(using: .utf8) ?? modifiedSVGData
-    }
+      // Inject base color into SVG data
+      var modifiedSVGData = svg.data
+      if let svgString = String(data: modifiedSVGData, encoding: .utf8) {
+          #if os(iOS)
+          let isDarkMode = UITraitCollection.current.userInterfaceStyle == .dark
+          #else
+          let isDarkMode = NSAppearance.currentDrawing().name == .darkAqua
+          #endif
+          
+          let baseColor = isDarkMode ? "#e5e7eb" : "#3d4d6a"
+          let colorInjection = "svg { color: \(baseColor); } text { fill: currentColor; }"
+          
+          let modifiedSVGString = svgString.replacingOccurrences(
+              of: "</svg>",
+              with: "<style>\(colorInjection)</style></svg>"
+          )
+          modifiedSVGData = modifiedSVGString.data(using: .utf8) ?? modifiedSVGData
+      }
       
     #if os(iOS)
         let contentSize = UIApplication.shared.preferredContentSizeCategory
