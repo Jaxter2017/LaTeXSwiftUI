@@ -307,9 +307,22 @@ extension Renderer {
 //    let height = svg.geometry.height.toPoints(font.xHeight)
       
       // Inject base color into SVG data
+      // Inject base color into SVG data
       var modifiedSVGData = svg.data
       if let svgString = String(data: modifiedSVGData, encoding: .utf8) {
-        let colorInjection = "svg { color: #3d4d6a; } text { fill: currentColor; }"
+        // Define colors using the same values as your Color extension
+        let lightModeColor = "#3d4d6a" // rgb(61, 77, 106)
+        let darkModeColor = "#e5e7eb"  // rgb(229, 231, 235)
+        
+        // Create a media query style block for dark mode support
+        let colorInjection = """
+          svg { color: \(lightModeColor); }
+          text { fill: currentColor; }
+          @media (prefers-color-scheme: dark) {
+            svg { color: \(darkModeColor); }
+          }
+        """
+        
         let modifiedSVGString = svgString.replacingOccurrences(
           of: "</svg>",
           with: "<style>\(colorInjection)</style></svg>"
