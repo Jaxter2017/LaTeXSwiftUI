@@ -30,7 +30,12 @@ import SwiftUI
 private func transformLatex(_ latex: String) -> String {
     let bbReplaced = replaceBlackboardBold(latex)
     let emojiReplaced = handleEmojis(bbReplaced)
-    return convertArrayToEquation(emojiReplaced)
+    let lessThanReplaced = handleLessThan(emojiReplaced)
+    return convertArrayToEquation(lessThanReplaced)
+}
+
+private func handleLessThan(_ latex: String) -> String {
+    return latex.replacingOccurrences(of: "<", with: "\\lt")
 }
 
 private func replaceBlackboardBold(_ latex: String) -> String {
