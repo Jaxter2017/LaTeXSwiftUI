@@ -59,14 +59,52 @@ internal struct ComponentBlocksViews: View {
   
   // MARK: View body
   
+    // var body: some View {
+    //     VStack(alignment: .leading, spacing: 36) {
+    //         Group {
+    //             ForEach(blocks, id: \.self) { block in
+    //                 blockView(for: block)
+    //             }
+    //         }
+    //     }
+    // }
+    
+    var filteredBlocks: [ComponentBlock] {
+        blocks.enumerated().compactMap { (index, block) in
+            if block.components.isEmpty,
+               index > 0,
+               index < blocks.count - 1,
+               blocks[index - 1].components.contains(where: { $0.type == Component.ComponentType.blockEquation }),
+               blocks[index + 1].components.contains(where: { $0.type == Component.ComponentType.blockEquation }) {
+                return nil
+            }
+            return block
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 36) {
             Group {
-                ForEach(blocks, id: \.self) { block in
-                    blockView(for: block)
+                ForEach(Array(filteredBlocks.enumerated()), id: \.element) { index, block in
+                    blockViewWithLogging(for: block, at: index)
                 }
             }
         }
+    }
+
+//    var body: some View {
+//        VStack(alignment: .leading, spacing: 36) {
+//            Group {
+//                ForEach(Array(blocks.enumerated()), id: \.element) { index, block in
+//                    blockViewWithLogging(for: block, at: index)
+//                }
+//            }
+//        }
+//    }
+    
+    func blockViewWithLogging(for block: ComponentBlock, at index: Int) -> some View {
+        print("Rendering block at index \(index): \(block)")
+        return blockView(for: block)
     }
 
     @ViewBuilder

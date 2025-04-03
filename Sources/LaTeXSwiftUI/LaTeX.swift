@@ -31,12 +31,143 @@ private func transformLatex(_ latex: String) -> String {
     let bbReplaced = replaceBlackboardBold(latex)
     let emojiReplaced = handleEmojis(bbReplaced)
     let lessThanReplaced = handleLessThan(emojiReplaced)
-    return convertArrayToEquation(lessThanReplaced)
+    let convertedArrayToEquation = convertArrayToEquation(lessThanReplaced)
+    let ampersandRemoved = removeAmpersandsInDisplayMath(convertedArrayToEquation)
+    return replaceBracketNewline(in: ampersandRemoved)
 }
 
 private func handleLessThan(_ latex: String) -> String {
     return latex.replacingOccurrences(of: "<", with: "\\lt")
 }
+
+
+//func replaceBracketNewline(in input: String) -> String {
+//    // This pattern matches:
+//    // - `\\\]`: a literal "\]" (backslash is escaped)
+//    // - `\s*`: zero or more whitespace characters (including spaces or tabs)
+//    // - `\n`: a newline character
+//    let pattern = #"\\\]\s*\n"#
+//    
+//    guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+//        return input
+//    }
+//    
+//    let range = NSRange(input.startIndex..., in: input)
+//    
+//    // The replacement template "\\\\]" produces the literal characters "\]"
+//    let modifiedString = regex.stringByReplacingMatches(in: input,
+//                                                        options: [],
+//                                                        range: range,
+//                                                        withTemplate: "\\\\]")
+//    return modifiedString
+//}
+
+func replaceBracketNewline(in input: String, debug: Bool = true) -> String {
+    var modifiedString = input
+    
+    // --- Step 1: Remove newline and any whitespace AFTER the closing "\]" ---
+    // This pattern matches:
+    // - `\\\]`: a literal "\]" (backslash is escaped)
+    // - `\s*`: zero or more whitespace characters (including spaces or tabs)
+    // - `\n`: a newline character
+    let closingPattern = #"\\\]\s*\n"#
+    
+    guard let closingRegex = try? NSRegularExpression(pattern: closingPattern, options: []) else {
+        return input
+    }
+    
+    let closingRange = NSRange(modifiedString.startIndex..., in: modifiedString)
+    modifiedString = closingRegex.stringByReplacingMatches(in: modifiedString,
+                                                           options: [],
+                                                           range: closingRange,
+                                                           withTemplate: "\\\\]")
+    
+    // --- Step 2: Remove newline and any whitespace BEFORE the first "\[" ---
+    // This pattern matches:
+    // - `\n`: a newline character immediately preceding the opening delimiter
+    // - `\s*`: zero or more whitespace characters before the delimiter
+    // - `(\\\[)`: captures the literal "\[" (the backslash is escaped)
+    let openingPattern = #"\n\s*(\\\[)"#
+    
+    guard let openingRegex = try? NSRegularExpression(pattern: openingPattern, options: []) else {
+        return modifiedString
+    }
+    
+    // We only want to adjust the first occurrence.
+    if let firstMatch = openingRegex.firstMatch(in: modifiedString, options: [], range: NSRange(modifiedString.startIndex..., in: modifiedString)) {
+        // Extract the captured literal "\[" from the match.
+        if let captureRange = Range(firstMatch.range(at: 1), in: modifiedString) {
+            let captured = String(modifiedString[captureRange])
+            // Replace the entire match (newline, whitespace, and "\[") with just the literal "\["
+            if let matchRange = Range(firstMatch.range, in: modifiedString) {
+                modifiedString.replaceSubrange(matchRange, with: captured)
+            }
+        }
+    }
+    
+    // --- Debug output ---
+    if debug {
+        print("Input: \(input)")
+        print("Output: \(modifiedString)")
+    }
+    
+    return modifiedString
+}
+
+func removeAmpersandsInDisplayMath(_ input: String, debug: Bool = true) -> String {
+    var output = input
+
+    if debug {
+        print("Input string:\n\(input)\n")
+    }
+    
+    // Regular expression pattern to match display math blocks: \[ ... \]
+    let pattern = #"\\\[(.*?)\\\]"#
+    let regex = try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+    let nsrange = NSRange(output.startIndex..<output.endIndex, in: output)
+    
+    // Find matches in input
+    let matches = regex.matches(in: output, options: [], range: nsrange)
+    if debug {
+        print("Found \(matches.count) display math block match(es).\n")
+    }
+    
+    // Process matches in reverse order to maintain correct ranges
+    for (index, match) in matches.reversed().enumerated() {
+        let fullRange = match.range(at: 0)
+        let contentRange = match.range(at: 1)
+        
+        if let fullRange = Range(fullRange, in: output),
+           let contentRange = Range(contentRange, in: output) {
+            let fullMatch = String(output[fullRange])
+            let content = String(output[contentRange])
+            
+            if debug {
+                print("Match \(index + 1):")
+                print("Full match:\n\(fullMatch)")
+                print("Original content:\n\(content)")
+            }
+            
+            // Remove all '&' characters from the content
+            let modifiedContent = content.replacingOccurrences(of: "&", with: "")
+            
+            if debug {
+                print("Modified content:\n\(modifiedContent)")
+            }
+            
+            // Reconstruct the display math block with modified content
+            let newBlock = "\\[\(modifiedContent)\\]"
+            output.replaceSubrange(fullRange, with: newBlock)
+        }
+    }
+    
+    if debug {
+        print("\nFinal output:\n\(output)")
+    }
+    
+    return output
+}
+
 
 private func replaceBlackboardBold(_ latex: String) -> String {
     var result = ""
@@ -71,33 +202,57 @@ private func replaceBlackboardBold(_ latex: String) -> String {
     return result
 }
 
-func convertArrayToEquation(_ input: String) -> String {
+func convertArrayToEquation(_ input: String, debug: Bool = true) -> String {
     var output = input
 
-    // Regular expression pattern to match \begin{array}{...}...\end{array}
-    let pattern = #"\\begin\{array\}\{[^\}]*\}(.*?)\\end\{array\}"#
-    let regex = try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+    if debug {
+        print("Input string:\n\(input)\n")
+    }
 
+    // Regular expression pattern to match either:
+    //   \begin{array}{...} ... \end{array}  OR  \begin{aligned} ... \end{aligned}
+    let pattern = #"\\begin\{(array|aligned)\}(?:\{[^\}]*\})?(.*?)\\end\{\1\}"#
+    let regex = try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     let nsrange = NSRange(output.startIndex..<output.endIndex, in: output)
 
     // Find matches in input
     let matches = regex.matches(in: output, options: [], range: nsrange)
+    if debug {
+        print("Found \(matches.count) environment match(es).\n")
+    }
 
     // Process matches in reverse order to maintain correct ranges
-    for match in matches.reversed() {
-        // Full range of the entire \begin{array}...\end{array}
+    for (index, match) in matches.reversed().enumerated() {
+        // The full match is in group 0
         let fullRange = match.range(at: 0)
-        // Range of the content inside the array environment
-        let contentRange = match.range(at: 1)
+        // The inner content is captured in group 2 (group 1 holds the environment name)
+        let contentRange = match.range(at: 2)
 
         if let fullRange = Range(fullRange, in: output),
            let contentRange = Range(contentRange, in: output) {
+            let fullMatch = String(output[fullRange])
             let content = String(output[contentRange])
-            // Replace '\\' with '\newline '
-            let modifiedContent = content.replacingOccurrences(of: #"\\\\\s*"#, with: #"\\newline "#, options: .regularExpression)
-            // Replace the entire \begin{array}...\end{array} with the modified content, trimming extra whitespace
+            
+            if debug {
+                print("Match \(index + 1):")
+                print("Full match:\n\(fullMatch)")
+                print("Inner content:\n\(content)")
+            }
+
+            // Replace occurrences of '\\' (with any trailing whitespace) with '\\ '
+            let modifiedContent = content.replacingOccurrences(of: #"\\\\\s*"#, with: #"\\\\ "#, options: .regularExpression)
+            
+            if debug {
+                print("Modified content:\n\(modifiedContent)")
+            }
+
+            // Replace the entire \begin{...}...\end{...} block with the modified content (trimming extra whitespace)
             output.replaceSubrange(fullRange, with: modifiedContent.trimmingCharacters(in: .whitespacesAndNewlines))
         }
+    }
+
+    if debug {
+        print("\nFinal output:\n\(output)")
     }
 
     return output
