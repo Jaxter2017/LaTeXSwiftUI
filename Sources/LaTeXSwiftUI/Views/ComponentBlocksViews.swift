@@ -83,11 +83,14 @@ internal struct ComponentBlocksViews: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 36) {
+        VStack(alignment: .leading, spacing: 36 * scaleFactor / 1.5) {
             Group {
                 ForEach(Array(filteredBlocks.enumerated()), id: \.element) { index, block in
                     blockViewWithLogging(for: block, at: index)
                 }
+            }
+            .onAppear {
+                print("Scale factor in ComponentBlocksViews: \(scaleFactor / 1.5)")
             }
         }
     }
