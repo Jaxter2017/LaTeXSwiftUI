@@ -86,7 +86,7 @@ internal struct ComponentBlocksViews: View {
         VStack(alignment: .leading, spacing: 36 * scaleFactor / 1.5) {
             Group {
                 ForEach(Array(filteredBlocks.enumerated()), id: \.element) { index, block in
-                    blockView(for: block, at: index)
+                    blockView(for: block)
                 }
             }
         }
