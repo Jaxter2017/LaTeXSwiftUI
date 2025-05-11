@@ -89,9 +89,6 @@ internal struct ComponentBlocksViews: View {
                     blockViewWithLogging(for: block, at: index)
                 }
             }
-            .onAppear {
-                print("Scale factor in ComponentBlocksViews: \(scaleFactor / 1.5)")
-            }
         }
     }
 
