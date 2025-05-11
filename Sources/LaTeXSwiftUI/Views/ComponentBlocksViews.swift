@@ -86,25 +86,10 @@ internal struct ComponentBlocksViews: View {
         VStack(alignment: .leading, spacing: 36 * scaleFactor / 1.5) {
             Group {
                 ForEach(Array(filteredBlocks.enumerated()), id: \.element) { index, block in
-                    blockViewWithLogging(for: block, at: index)
+                    blockView(for: block, at: index)
                 }
             }
         }
-    }
-
-//    var body: some View {
-//        VStack(alignment: .leading, spacing: 36) {
-//            Group {
-//                ForEach(Array(blocks.enumerated()), id: \.element) { index, block in
-//                    blockViewWithLogging(for: block, at: index)
-//                }
-//            }
-//        }
-//    }
-    
-    func blockViewWithLogging(for block: ComponentBlock, at index: Int) -> some View {
-        print("Rendering block at index \(index): \(block)")
-        return blockView(for: block)
     }
 
     @ViewBuilder
