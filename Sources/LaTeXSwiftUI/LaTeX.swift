@@ -202,7 +202,7 @@ private func replaceBlackboardBold(_ latex: String) -> String {
     return result
 }
 
-func convertArrayToEquation(_ input: String, debug: Bool = true) -> String {
+func convertArrayToEquation(_ input: String, debug: Bool = false) -> String {
     var output = input
 
     if debug {
